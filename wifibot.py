@@ -264,30 +264,28 @@ class WifiBot(object):
   #####################################
   def set_right_speed(self, num):
     if num <= 0: num=1
-    elif num > 100: num=100
+    elif num >= 100: num=99
     self.right_speed=num
     if num ==0:
-      GPIO.output(IN1,0)
-      GPIO.output(IN2,0)
+      GPIO.output([IN1, IN2],(0, 0))
     self.ENA_pwm.ChangeDutyCycle(num)
 
   #
   #
   def set_left_speed(self, num):
     if num <= 0: num=1
-    elif num > 100: num=100
+    elif num >= 100: num=99
     self.left_speed=num
     if num==0:
-      GPIO.output(IN3,0)
-      GPIO.output(IN4,0)
+      GPIO.output([IN3, IN4],(0, 0))
     self.ENB_pwm.ChangeDutyCycle(num)
 
   ####################################################
   def Angle_cal(self, angle):
     if angle > 160:
       angle=160
-    elif angle < 15:
-      angle=15
+    elif angle < 20:
+      angle=20
     return angle
   
   #
