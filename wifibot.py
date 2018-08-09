@@ -49,8 +49,8 @@ IRF_L = 24
 #
 class WifiBot(object):
   def __init__(self):
-    self.left_speed=100
-    self.right_speed=100
+    self.left_speed=80
+    self.right_speed=80
     self.moving_dir=None
     self.servo=None
     self.init_robot()
@@ -72,7 +72,8 @@ class WifiBot(object):
     self.setup_sonar()
 
     print '....WIFIROBOTS START!!!...'
-    #self.stop_motor()
+    self.motor_on()
+    return
 
   #
   #
@@ -87,16 +88,12 @@ class WifiBot(object):
     # right motor
     GPIO.setup(ENA,GPIO.OUT,initial=GPIO.LOW)
     self.ENA_pwm=GPIO.PWM(ENA,1000) 
-    self.ENA_pwm.start(0) 
-    self.ENA_pwm.ChangeDutyCycle(100)
     GPIO.setup(IN1,GPIO.OUT,initial=GPIO.LOW)
     GPIO.setup(IN2,GPIO.OUT,initial=GPIO.LOW)
 
     # left motor
     GPIO.setup(ENB,GPIO.OUT,initial=GPIO.LOW)
     self.ENB_pwm=GPIO.PWM(ENB,1000) 
-    self.ENB_pwm.start(0) 
-    self.ENB_pwm.ChangeDutyCycle(100)
     GPIO.setup(IN3,GPIO.OUT,initial=GPIO.LOW)
     GPIO.setup(IN4,GPIO.OUT,initial=GPIO.LOW)
 
@@ -131,7 +128,7 @@ class WifiBot(object):
     time.sleep(1)
   
   ####################################################
-  def test_leds(self):
+  def demo_leds(self):
     for i in range(1, 5):
       self.set_leds(0,0,0)
       time.sleep(0.5)
@@ -145,6 +142,8 @@ class WifiBot(object):
       time.sleep(0.5)
       self.set_leds(1,1,1)
 
+  #
+  #
   def set_leds(self, x1, x2, x3):
       if x1 is not None:
         GPIO.output(LED0,(x1 == 1))
@@ -154,37 +153,34 @@ class WifiBot(object):
         GPIO.output(LED2,(x3 == 1))
 
   #####################################
-  def stop_motor (self):
-    GPIO.output(ENA, 0)
-    GPIO.output(ENB, 0)
-    GPIO.output(IN1, 0)
-    GPIO.output(IN2, 0)
-    GPIO.output(IN3, 0)
-    GPIO.output(IN4, 0)
+  def motor_on(self):
+    self.ENA_pwm.start(self.right_speed)
+    self.ENB_pwm.start(self.left_speed)
+    return
+
+  def motor_off(self):
+    self.ENA_pwm.stop()
+    self.ENB_pwm.stop()
+    return
+
+  def stop(self):
+    GPIO.output([IN1, IN2, IN3, IN4], (0, 0, 0, 0))
     self.moving_dir=None
     time.sleep(0.3)
     return
 
   def set_right_motor_dir(self, rev):
     if rev :
-      GPIO.output(IN1, 0)
-      time.sleep(0.3)
-      GPIO.output(IN2, 1)
+      GPIO.output([IN1,IN2], (0, 1))
     else:
-      GPIO.output(IN2, 0)
-      time.sleep(0.3)
-      GPIO.output(IN1, 1)
+      GPIO.output([IN1,IN2], (1, 0))
     return 
 
   def set_left_motor_dir(self, rev):
     if rev :
-      GPIO.output(IN3, 0)
-      time.sleep(0.3)
-      GPIO.output(IN4, 1)
+      GPIO.output([IN3,IN4], (0, 1))
     else:
-      GPIO.output(IN4, 0)
-      time.sleep(0.3)
-      GPIO.output(IN3, 1)
+      GPIO.output([IN3,IN4], (1, 0))
     return 
 
 
@@ -205,7 +201,7 @@ class WifiBot(object):
   def Forward(self, sp):
     print 'motor forward'
     if self.moving_dir and self.moving_dir != "forward":
-      self.stop_motor()
+      self.stop()
 
     self.set_speed(sp, sp)
 
@@ -219,7 +215,7 @@ class WifiBot(object):
   def Backward(self, sp):
     print 'motor_backward'
     if self.moving_dir and self.moving_dir != "backward":
-      self.stop_motor()
+      self.stop()
 
     self.set_speed(sp, sp)
 
@@ -233,7 +229,7 @@ class WifiBot(object):
   def TurnLeft(self, sp):
     print 'motor_turnleft'
     if self.moving_dir and self.moving_dir != "trunleft":
-      self.stop_motor()
+      self.stop()
 
     self.set_speed(sp, sp)
 
@@ -247,7 +243,7 @@ class WifiBot(object):
   def TurnRight(self,sp):
     print 'motor_turnright'
     if self.moving_dir and self.moving_dir != "trunright":
-      self.stop_motor()
+      self.stop()
 
     self.set_speed(sp, sp)
 
@@ -260,7 +256,7 @@ class WifiBot(object):
 
   def Stop(self):
     print 'motor_stop'
-    self.stop_motor()
+    self.stop()
     self.set_leds(None, 1, 1)
     return 
   
@@ -315,6 +311,11 @@ class WifiBot(object):
     self.SetServoAngle(7,av)
     self.SetServoAngle(8,ah)
     return
+
+  def close(self):
+    self.ENA_pwm.stop()
+    self.ENB_pwm.stop()
+    GPIO.cleanup()
 
   ####################################################
   def  Avoiding(self): 
