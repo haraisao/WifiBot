@@ -3,18 +3,17 @@
 '''
 import os
 from time import ctime
-import binascii
 import RPi.GPIO as GPIO
 import time
-import threading
 from smbus import SMBus
+
+import threading
 import cv2
 import numpy as np
 
-
-
 ########################
 # Constants
+#
 ### fro LEDs ###
 LED0 = 10
 LED1 = 9
@@ -42,37 +41,11 @@ IRF_L = 24
 ########################
 # Variables
 #
-global Path_Dect_px
-Path_Dect_px = 320
-global Path_Dect_on
-Path_Dect_on = 0
 
-global Cruising_Flag
-Cruising_Flag = 0  
-global Pre_Cruising_Flag
-Pre_Cruising_Flag = 0 
-
-global RevStatus
-RevStatus = 0
-global TurnAngle
-TurnAngle=0;
-global Golength
-Golength=0
-
-global motor_flag
-motor_flag=1
-
-
-global left_speed
-global right_speed
-global left_speed_hold
-global right_speed_hold
-left_speed=100
-right_speed=100
 
 
 ########################
-#
+#  Class: WifiBot
 #
 class WifiBot(object):
   def __init__(self):
