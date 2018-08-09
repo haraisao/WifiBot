@@ -8,7 +8,7 @@ import time
 from smbus import SMBus
 
 import threading
-import cv2
+#import cv2
 import numpy as np
 
 ########################
