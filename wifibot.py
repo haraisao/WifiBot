@@ -51,6 +51,7 @@ class WifiBot(object):
   def __init__(self):
     self.left_speed=100
     self.right_speed=100
+    self.moving_dir=None
     self.servo=None
     self.init_robot()
 
@@ -58,7 +59,6 @@ class WifiBot(object):
   #
   def init_robot(self):
     self.servo = SMBus(1)
-    print '....WIFIROBOTS START!!!...'
 
     #
     #  GPIO Mode
@@ -71,7 +71,8 @@ class WifiBot(object):
     self.setup_ir_sensors()
     self.setup_sonar()
 
-    self.stop_motor()
+    print '....WIFIROBOTS START!!!...'
+    #self.stop_motor()
 
   #
   #
@@ -154,69 +155,110 @@ class WifiBot(object):
 
   #####################################
   def stop_motor (self):
-    GPIO.output(ENA, False)
-    GPIO.output(ENB, False)
-    GPIO.output(IN1, False)
-    GPIO.output(IN2, False)
-    GPIO.output(IN3, False)
-    GPIO.output(IN4, False)
+    GPIO.output(ENA, 0)
+    GPIO.output(ENB, 0)
+    GPIO.output(IN1, 0)
+    GPIO.output(IN2, 0)
+    GPIO.output(IN3, 0)
+    GPIO.output(IN4, 0)
+    self.moving_dir=None
+    time.sleep(0.3)
     return
 
-  def set_right_motor_dir(self, in1, in2):
-    GPIO.output(IN1, (in1 == 1))
-    GPIO.output(IN2, (in2 == 1))
+  def set_right_motor_dir(self, rev):
+    if rev :
+      GPIO.output(IN1, 0)
+      time.sleep(0.3)
+      GPIO.output(IN2, 1)
+    else:
+      GPIO.output(IN2, 0)
+      time.sleep(0.3)
+      GPIO.output(IN1, 1)
     return 
 
-  def set_left_motor_dir(self, in1, in2):
-    GPIO.output(IN3, (in1 == 1))
-    GPIO.output(IN4, (in2 == 1))
+  def set_left_motor_dir(self, rev):
+    if rev :
+      GPIO.output(IN3, 0)
+      time.sleep(0.3)
+      GPIO.output(IN4, 1)
+    else:
+      GPIO.output(IN4, 0)
+      time.sleep(0.3)
+      GPIO.output(IN3, 1)
     return 
 
-  def right_motor(self, on, reverse):
-    GPIO.output(ENA, False)
-    GPIO.output(IN1, (reverse != 1))
-    GPIO.output(IN2, (reverse == 1))
-    time.sleep(0.3)
-    GPIO.output(ENA, (on == 1))
+
+  def right_motor(self, sp, reverse):
+    self.set_right_speed(sp)
+    self.set_right_motor_dir(reverse)
     return 
 
-  def left_motor(self, on, reverse):
-    GPIO.output(ENB, False)
-    GPIO.output(IN3, (reverse != 1))
-    GPIO.output(IN4, (reverse == 1))
-    time.sleep(0.3)
-    GPIO.output(ENB, (on == 1))
+  def left_motor(self, sp, reverse):
+    self.set_left_speed(sp)
+    self.set_left_motor_dir(reverse)
     return 
 
-  def Motor_Forward(self):
+  def set_speed(self, rsp, lsp):
+    self.set_right_speed(rsp)
+    self.set_left_speed(lsp)
+
+  def Forward(self, sp):
     print 'motor forward'
-    self.right_motor(1, 0)
-    self.left_motor(1, 0)
+    if self.moving_dir and self.moving_dir != "forward":
+      self.stop_motor()
+
+    self.set_speed(sp, sp)
+
+    GPIO.output(IN1, 1)
+    GPIO.output(IN3, 1)
+    self.moving_dir = "forward"
+
     self.set_leds(None, 0, 0)
     return 
   
-  def Motor_Backward(self):
+  def Backward(self, sp):
     print 'motor_backward'
-    self.right_motor(1, 1)
-    self.left_motor(1, 1)
+    if self.moving_dir and self.moving_dir != "backward":
+      self.stop_motor()
+
+    self.set_speed(sp, sp)
+
+    GPIO.output(IN2, 1)
+    GPIO.output(IN4, 1)
+
+    self.moving_dir = "backward"
     self.set_leds(None, 1, 0)
     return 
 
-  def Motor_TurnLeft(self):
+  def TurnLeft(self, sp):
     print 'motor_turnleft'
-    self.right_motor(1, 0)
-    self.left_motor(1, 1)
+    if self.moving_dir and self.moving_dir != "trunleft":
+      self.stop_motor()
+
+    self.set_speed(sp, sp)
+
+    GPIO.output(IN1, 1)
+    GPIO.output(IN4, 1)
+
+    self.moving_dir = "trunleft"
     self.set_leds(None, 0, 1)
     return 
 
-  def Motor_TurnRight(self):
+  def TurnRight(self,sp):
     print 'motor_turnright'
-    self.right_motor(1, 1)
-    self.left_motor(1, 0)
+    if self.moving_dir and self.moving_dir != "trunright":
+      self.stop_motor()
+
+    self.set_speed(sp, sp)
+
+    GPIO.output(IN2, 1)
+    GPIO.output(IN3, 1)
+
+    self.moving_dir = "trunright"
     self.set_leds(None, 0, 1)
     return 
 
-  def Motor_Stop(self):
+  def Stop(self):
     print 'motor_stop'
     self.stop_motor()
     self.set_leds(None, 1, 1)
@@ -224,18 +266,24 @@ class WifiBot(object):
   
 
   #####################################
-  def right_speed(self, num):
-    if num < 0: num=0
+  def set_right_speed(self, num):
+    if num <= 0: num=1
     elif num > 100: num=100
     self.right_speed=num
+    if num ==0:
+      GPIO.output(IN1,0)
+      GPIO.output(IN2,0)
     self.ENA_pwm.ChangeDutyCycle(num)
 
   #
   #
-  def left_speed(self, num):
-    if num < 0: num=0
+  def set_left_speed(self, num):
+    if num <= 0: num=1
     elif num > 100: num=100
     self.left_speed=num
+    if num==0:
+      GPIO.output(IN3,0)
+      GPIO.output(IN4,0)
     self.ENB_pwm.ChangeDutyCycle(num)
 
   ####################################################
@@ -271,7 +319,7 @@ class WifiBot(object):
   ####################################################
   def  Avoiding(self): 
     if GPIO.input(IR_M) == False:
-      self.Motor_Stop()
+      self.Stop()
       time.sleep(0.1)
       return
 
@@ -296,15 +344,15 @@ class WifiBot(object):
     if(distance<20):
       distance = 20
     if((dis>1)&(dis < distance)):
-      self.Motor_Stop()
+      self.Stop()
   
     
   def Avoid_wave(self):
     dis = self.Get_Distence()
     if dis<20:
-      Motor_Stop()
+      self.Stop()
     else:
-      Motor_Forward()
+      self.Forward()
 
 
 ####################################################
