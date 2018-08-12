@@ -5,7 +5,7 @@ import os
 from time import ctime
 import RPi.GPIO as GPIO
 import time
-from smbus import SMBus
+#from smbus import SMBus
 
 import threading
 import cv2
@@ -39,6 +39,10 @@ IRF_R = 23
 IRF_L = 24  
 
 
+### Pan,Tilt
+PAN=6
+TILT=5
+
 ########################
 #  Class: WifiBot
 #
@@ -49,14 +53,14 @@ class WifiBot(object):
     self.left_speed=80
     self.right_speed=80
     self.moving_dir=None
-    self.move_dir=0  # 0: stop, 1: f, 2: b, 3: tr,  4:tl
     self.servo=None
     self.init_robot()
+    self.move_dir_io=(0,0,0,0)
 
   #
   #
   def init_robot(self):
-    self.servo = SMBus(1)
+    #self.servo = SMBus(1)
     #
     #  GPIO Mode
     GPIO.setmode(GPIO.BCM)
@@ -65,6 +69,7 @@ class WifiBot(object):
     #########Setup Hardware##########
     self.setup_leds()
     self.setup_motors()
+    self.setup_head()
     self.setup_ir_sensors()
     self.setup_sonar()
 
@@ -89,6 +94,17 @@ class WifiBot(object):
     GPIO.setup(ENB,GPIO.OUT,initial=GPIO.LOW)
     self.ENB_pwm=GPIO.PWM(ENB,1000) 
     GPIO.setup([IN3,IN4],GPIO.OUT,initial=GPIO.LOW)
+
+  #
+  #
+  def setup_head(self):
+    GPIO.setup(PAN,GPIO.OUT,initial=GPIO.LOW)
+    self.PAN_pwm=GPIO.PWM(PAN,50) 
+    self.PAN_pwm.start(0)
+    GPIO.setup(TILT,GPIO.OUT,initial=GPIO.LOW)
+    self.TILT_pwm=GPIO.PWM(TILT,50) 
+    self.TILT_pwm.start(0)
+
 
   #
   #
@@ -163,7 +179,7 @@ class WifiBot(object):
   def stop(self):
     GPIO.output([IN1, IN2, IN3, IN4], (0, 0, 0, 0))
     self.moving_dir=None
-    self.move_dir=0
+    self.move_dir_io=(0,0,0,0)
     time.sleep(0.3)
     return
 
@@ -199,60 +215,31 @@ class WifiBot(object):
     self.set_left_motor_dir(reverse)
     return 
 
-  #
-  #
-  #  self.move_dir # 0: stop, 1: f, 2: b, 3: tr,  4:tl
-  def set_speed(self, rsp, lsp):
-    if rsp == 0 and lsp == 0:
-      GPIO.output([IN1, IN2, IN3,IN4], (0, 0, 0, 0))
-      self.move_dir = 0
-
-    elif rsp == 0 and lsp > 0:
-      self.set_left_speed(lsp)
-      GPIO.output([IN1, IN2, IN3,IN4], (0, 0, 1, 0))
-      self.move_dir = 1
-
-    elif rsp == 0 and lsp < 0:
-      self.set_left_speed(-lsp)
-      GPIO.output([IN1, IN2, IN3,IN4], (0, 0, 0, 1))
-      self.move_dir = 2
-
-    elif rsp > 0 and lsp == 0:
-      self.set_left_speed(rsp)
-      GPIO.output([IN1, IN2, IN3,IN4], (1, 0, 0, 0))
-      self.move_dir = 1
-
-    elif rsp < 0 and lsp == 0:
-      self.set_left_speed(-rsp)
-      GPIO.output([IN1, IN2, IN3,IN4], (0, 1, 0, 0))
-      self.move_dir = 2
-
-    elif rsp > 0 and lsp > 0:
-      self.set_right_speed(rsp)
-      self.set_left_speed(lsp)
-      GPIO.output([IN1, IN2, IN3,IN4], (1, 0, 1, 0))
-      self.move_dir = 1
-
-    elif rsp < 0 and lsp > 0:
-      self.set_right_speed(-rsp)
-      self.set_left_speed(lsp)
-      GPIO.output([IN1, IN2, IN3,IN4], (0, 1, 1, 0))
-      self.move_dir = 4
-
-    elif rsp > 0 and lsp < 0:
-      self.set_right_speed(rsp)
-      self.set_left_speed(-lsp)
-      GPIO.output([IN1, IN2, IN3,IN4], (1, 0, 0, 1))
-      self.move_dir = 3
-
-    elif rsp > 0 and lsp < 0:
-      self.set_right_speed(-rsp)
-      self.set_left_speed(-lsp)
-      GPIO.output([IN1, IN2, IN3,IN4], (0, 0, 0, 1))
-      self.move_dir = 2
-
+  def get_io(self, sp):
+    if sp>0:
+      return (1,0)
+    elif sp<0:
+      return (0,1)
     else:
-      print("Unexpected error")
+      return (0,0)
+  #
+  #
+  def set_speed(self, rsp, lsp):
+    r_io=self.get_io(rsp)
+    l_io=self.get_io(lsp)
+    move_io=r_io+l_io
+
+    if self.move_dir_io != move_io:
+      GPIO.output([IN1, IN2, IN3,IN4], (0, 0, 0, 0))
+      time.sleep(0.3)
+      self.move_dir_io = move_io
+
+    self.set_right_speed(np.abs(rsp))
+    self.set_left_speed(np.abs(lsp))
+    GPIO.output([IN1, IN2, IN3,IN4], move_io)
+
+    return 
+     
   #
   #
   def Forward(self, sp):
@@ -329,8 +316,6 @@ class WifiBot(object):
     if num <= 0: num=1
     elif num >= 100: num=99
     self.right_speed=num
-    if num ==0:
-      GPIO.output([IN1, IN2],(0, 0))
     self.ENA_pwm.ChangeDutyCycle(num)
 
   #
@@ -339,8 +324,6 @@ class WifiBot(object):
     if num <= 0: num=1
     elif num >= 100: num=99
     self.left_speed=num
-    if num==0:
-      GPIO.output([IN3, IN4],(0, 0))
     self.ENB_pwm.ChangeDutyCycle(num)
 
   ####################################################
@@ -360,7 +343,7 @@ class WifiBot(object):
     time.sleep(0.01)
     self.set_leds(1, 1, 1)
 
-    self.servo.XiaoRGEEK_SetServo(self.servo_no(ServoNum),self.Angle_cal(angle))
+    #self.servo.XiaoRGEEK_SetServo(self.servo_no(ServoNum),self.Angle_cal(angle))
     return
 
   #
@@ -371,7 +354,12 @@ class WifiBot(object):
     return int(n)
 
   #
-  #
+  #  5< ah,av < 23
+  def move_head_gpio(self, ah, av):
+    self.PAN_pwm.ChangeDutyCycle(ah)
+    self.TILT_pwm.ChangeDutyCycle(av)
+    return
+
   def move_head(self, ah, av):
     self.SetServoAngle(7,av)
     self.SetServoAngle(8,ah)
@@ -383,50 +371,6 @@ class WifiBot(object):
     self.ENA_pwm.stop()
     self.ENB_pwm.stop()
     GPIO.cleanup()
-
-  ####################################################
-  #
-  #
-  def  Avoiding(self): 
-    if GPIO.input(IR_M) == False:
-      self.Stop()
-      time.sleep(0.1)
-      return
-
-  ####################################################
-  #
-  #
-  def  Get_Distence(self):
-    time.sleep(0.1)
-    GPIO.output(TRIG,GPIO.HIGH)
-    time.sleep(0.000015)
-    GPIO.output(TRIG,GPIO.LOW)
-    while not GPIO.input(ECHO):
-        pass
-    t1 = time.time()
-    while GPIO.input(ECHO):
-        pass
-    t2 = time.time()
-    time.sleep(0.1)
-    return (t2-t1)*340/2*100
-
-  ####################################################
-  def  AvoidByRadar(self, distance):
-    dis = int(self.Get_Distence())
-    if(distance<20):
-      distance = 20
-    if((dis>1)&(dis < distance)):
-      self.Stop()
-  
-    
-  #
-  #
-  def Avoid_wave(self):
-    dis = self.Get_Distence()
-    if dis<20:
-      self.Stop()
-    else:
-      self.Forward()
 
 
 ####################################################
