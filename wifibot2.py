@@ -61,8 +61,8 @@ class WifiBot(object):
     # ECHO:4, TRIG:17
     self.sonar_io=[ECHO, TRIG]
 
-    self.left_speed=80
-    self.right_speed=80
+    self.left_speed=200
+    self.right_speed=200
     self.moving_dir=None
     self.servo=None
     self.init_robot()
@@ -204,38 +204,9 @@ class WifiBot(object):
     time.sleep(0.3)
     return
 
-  #
-  #
-  def set_right_motor_dir(self, rev):
-    if rev :
-      self.set_motor_io((0,1))
-    else:
-      self.set_motor_io((1,0))
-    return 
 
   #
   #
-  def set_left_motor_dir(self, rev):
-    if rev :
-      self.set_motor_io((0,1), 2)
-    else:
-      self.set_motor_io((1,0), 2)
-    return 
-
-  #
-  #
-  def right_motor(self, sp, reverse):
-    self.set_right_speed(sp)
-    self.set_right_motor_dir(reverse)
-    return 
-
-  #
-  #
-  def left_motor(self, sp, reverse):
-    self.set_left_speed(sp)
-    self.set_left_motor_dir(reverse)
-    return 
-
   def get_io(self, sp):
     if sp>0:
       return (1,0)
@@ -263,20 +234,24 @@ class WifiBot(object):
      
   #
   #
-  def Forward(self, sp):
+  def Forward(self, sp, timeout=-1):
     print 'motor forward'
     if self.moving_dir and self.moving_dir != "forward":
       self.stop()
 
+    
     self.set_speed(sp, sp)
     self.moving_dir = "forward"
-
     self.set_leds(None, 0, 0)
+    if timeout > 0:
+      time.sleep(timeout)
+      self.Stop()
+
     return 
   
   #
   #
-  def Backward(self, sp):
+  def Backward(self, sp, timeout=-1):
     print 'motor_backward'
     if self.moving_dir and self.moving_dir != "backward":
       self.stop()
@@ -285,11 +260,16 @@ class WifiBot(object):
 
     self.moving_dir = "backward"
     self.set_leds(None, 1, 0)
+
+    if timeout > 0:
+      time.sleep(timeout)
+      self.Stop()
+
     return 
 
   #
   #
-  def TurnLeft(self, sp):
+  def TurnLeft(self, sp, timeout=-1):
     print 'motor_turnleft'
     if self.moving_dir and self.moving_dir != "trunleft":
       self.stop()
@@ -298,11 +278,15 @@ class WifiBot(object):
 
     self.moving_dir = "trunleft"
     self.set_leds(None, 0, 1)
+    if timeout > 0:
+      time.sleep(timeout)
+      self.Stop()
+
     return 
 
   #
   #
-  def TurnRight(self,sp):
+  def TurnRight(self,sp, timeout=-1):
     print 'motor_turnright'
     if self.moving_dir and self.moving_dir != "trunright":
       self.stop()
@@ -311,6 +295,10 @@ class WifiBot(object):
 
     self.moving_dir = "trunright"
     self.set_leds(None, 0, 1)
+    if timeout > 0:
+      time.sleep(timeout)
+      self.Stop()
+
     return 
 
   #
@@ -324,6 +312,7 @@ class WifiBot(object):
 
   #####################################
   #
+  #  0< sp < 255, 0:stop, 255:full
   #
   def set_right_speed(self, num):
     if num <= 0: num=0
@@ -369,7 +358,7 @@ class WifiBot(object):
     return int(n)
 
   #
-  #  500< ah,av < 3000
+  #  500< ah,av < 2500, 500: right(90), 1500: center , 2500: left(-90)
   def move_head(self, ah, av):
     self.pi.set_servo_pulsewidth(PAN,ah)
     self.pi.set_servo_pulsewidth(TILT,av)
