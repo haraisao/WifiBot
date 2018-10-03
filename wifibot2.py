@@ -9,6 +9,7 @@ import time
 import threading
 import cv2
 import numpy as np
+from scipy import interpolate
 
 ########################
 # Constants
@@ -64,9 +65,12 @@ class WifiBot(object):
     self.left_speed=200
     self.right_speed=200
     self.moving_dir=None
+    self.vel2sp=None
     self.servo=None
+    self.limit=int(255*1.5)
     self.init_robot()
     self.move_dir_io=(0,0,0,0)
+    self.head=[1500,1500]
 
   #
   #
@@ -115,7 +119,7 @@ class WifiBot(object):
   #
   #
   def setup_ir_sensors(self):
-    for x in [IR_R, IR_L, IR_M, IRF_R, IRF_L]:
+    for x in self.ir_io:
       self.pi.set_mode(x, pigpio.INPUT)
       self.pi.set_pull_up_down(x, pigpio.PUD_UP)
     return
@@ -130,6 +134,28 @@ class WifiBot(object):
     self.pi.set_pull_up_down(ECHO, pigpio.PUD_UP)
     return
 
+  def make_lookup_table_v(self, y, mval=10):
+    t=np.linspace(0, mval, 11)
+    self.vel2sp=interpolate.interp1d(t, y, kind="cubic")
+    return
+
+  def move(self, v, w, d=0.1):
+    wd=w*d
+    right_v=v+wd
+    left_v=v-wd
+    rsp=self.vel2sp(right_v)
+    lsp=self.vel2sp(left_v)
+    self.set_speed(right_v, left_v)
+    return
+
+  def move_head2(self, dp, dt):
+    if dp :
+      self.head[0]=min(max(self.head[0]+dp, 500), 2500)
+      self.pi.set_servo_pulsewidth(PAN, self.head[0])
+    if dt :
+      self.head[1]=min(max(self.head[1]+dt, 500), 2500)
+      self.pi.set_servo_pulsewidth(TILT, self.head[1])
+    return
 
   ####################################################
   ## Open_Light()
@@ -221,9 +247,12 @@ class WifiBot(object):
     l_io=self.get_io(lsp)
     move_io=r_io+l_io
 
-    if self.move_dir_io != move_io:
+    drsp = np.abs(self.right_speed - rsp)
+    dlsp = np.abs(self.left_speed - lsp)
+
+    if (drsp > self.limit or dlsp > self.limit) and self.move_dir_io != move_io:
       self.set_motor_io((0,0,0,0))
-      time.sleep(0.3)
+      time.sleep(0.5)
       self.move_dir_io = move_io
 
     self.set_right_speed(np.abs(rsp))
@@ -232,6 +261,9 @@ class WifiBot(object):
 
     return 
      
+  def get_speed_from_v(self, v):
+    return int(self.vel2sp(v * 10))
+
   #
   #
   def Forward(self, sp, timeout=-1):
@@ -362,6 +394,8 @@ class WifiBot(object):
   def move_head(self, ah, av):
     self.pi.set_servo_pulsewidth(PAN,ah)
     self.pi.set_servo_pulsewidth(TILT,av)
+    self.head[0]=ah
+    self.head[1]=av
     return
 
   def move_head_pwm(self, ah, av):
@@ -374,7 +408,35 @@ class WifiBot(object):
   def close(self):
     self.pi.stop()
 
+  ########################
+  #
+  def Avoiding(self):
+    if self.pi.read(IR_M) == 0:
+      self.stop()
+      time.sleep(0.1)
+    return
 
+  def get_ir_sensor(self):
+    res=[]
+    for x in self.ir_io:
+      res.append(self.read(x))
+    return res
+
+  def get_distance(self):
+    time.sleep(0.1)
+    self.pi.write(TRIG, 1)
+    time.sleep(0.000015)
+    self.pi.write(TRIG, 0)
+    while not self.pi.read(ECHO) :
+      pass
+    t1=time.time()
+    while self.pi.read(ECHO):
+      pass
+    t2=time.time()
+    time.sleep(0.1)
+    return (t2 - t1) * 17000 # 340/2*100
+
+    
 ####################################################
 
 if __name__ == '__main__':
