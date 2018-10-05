@@ -4,6 +4,7 @@ import pygame
 from pygame.locals import *
 
 from wifibot2 import *
+from scipy import signal
 
 def setup_joystick():
   pygame.joystick.init()
@@ -34,25 +35,25 @@ def main(joy):
     for e in pygame.event.get():
       if e.type == pygame.locals.JOYAXISMOTION: # Analogue Stick
         v=joy.get_axis(1) * 200
-        if abs(v) < 50 : rv=lv=0
-        elif abs(v) < 150 : rv=lv= -75*np.sign(v)
-        else : rv=lv= -150*np.sign(v)
+        lv = rv = -v
+#        if abs(v) < 50 : rv=lv=0
+#        elif abs(v) < 150 : rv=lv= -75*np.sign(v)
+#        else : rv=lv= -150*np.sign(v)
 
         tsp=joy.get_axis(3) 
         if tsp < 0 :
           if rv > 0:
-            rv += tsp*abs(rv)
+            rv += tsp*abs(rv)*2
           elif rv <0:
-            rv -= tsp*abs(rv)
+            rv -= tsp*abs(rv)*2
         if tsp > 0 :
           if lv > 0:
-            lv -= tsp*abs(lv)
+            lv -= tsp*abs(lv)*2
           elif lv <0:
-            lv += tsp*abs(lv)
+            lv += tsp*abs(lv)*2
 
-        #print (v,tsp, lv, rv)
+        print ( int(lv), int(rv) )
         robot.set_speed( int(lv), int(rv) )
-        pass
 
 
       elif e.type == pygame.locals.JOYHATMOTION: # cross key 

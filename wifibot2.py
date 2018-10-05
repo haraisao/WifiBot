@@ -252,7 +252,7 @@ class WifiBot(object):
 
     if (drsp > self.limit or dlsp > self.limit) and self.move_dir_io != move_io:
       self.set_motor_io((0,0,0,0))
-      time.sleep(0.5)
+      time.sleep(0.3)
       self.move_dir_io = move_io
 
     self.set_right_speed(np.abs(rsp))
